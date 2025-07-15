@@ -1,70 +1,85 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AgroInteligente - Panel Educativo</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel IoT - Riego Inteligente</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f3f9f5;
+      color: #333;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #2a7b4f;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      padding: 0.5rem 0;
+      font-size: 1.2rem;
+    }
+    strong {
+      color: #155724;
+    }
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      color: #777;
+    }
+  </style>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 </head>
 <body>
-  <header>
-    <h1>🌿 AgroInteligente</h1>
-    <p>Sistema de riego automatizado con Inteligencia Artificial</p>
-  </header>
+  <h1>🌱 Panel IoT - Riego Inteligente</h1>
 
-  <section id="datos">
-    <h2>📈 Datos en Tiempo Real</h2>
-    <ul>
-      <li>Humedad del Suelo: <span id="humedadSuelo">45%</span></li>
-      <li>Temperatura: <span id="temperatura">24°C</span></li>
-      <li>Humedad Ambiental: <span id="humedadAmbiente">62%</span></li>
-    </ul>
-  </section>
-
-  <section id="estado">
-    <h2>💧 Estado del Riego</h2>
-    <p>Último Riego: <span id="ultimoRiego">Hoy 9:00 AM</span></p>
-    <p>Próximo Riego (IA): <span id="proximoRiego">4:30 PM</span></p>
-    <p>Ahorro de Agua Estimado: <span id="ahorroAgua">38%</span></p>
-  </section>
-
-  <section id="grafico">
-    <h2>📊 Historial de Riego</h2>
-    <canvas id="graficoRiego" width="400" height="200"></canvas>
-  </section>
-
-  <section id="recomendacion">
-    <h2>🎓 Recomendación IA</h2>
-    <p id="recomendacionTexto">Se recomienda esperar. El suelo está en condiciones óptimas.</p>
-  </section>
+  <ul>
+    <li>🌡️ Temperatura: <strong><span id="temperatura">--</span></strong></li>
+    <li>💧 Humedad del Suelo: <strong><span id="humedadSuelo">--</span></strong></li>
+    <li>🌫️ Humedad Ambiental: <strong><span id="humedadAmbiente">--</span></strong></li>
+    <li>🕒 Último Riego: <strong><span id="ultimoRiego">--</span></strong></li>
+  </ul>
 
   <footer>
-    <p>Creado con ❤️ por estudiantes para un futuro sostenible.</p>
+    © 2025 AgroInteligente - Proyecto educativo con IoT + Firebase
   </footer>
 
   <script>
-    // Simulación de datos para el gráfico
-    const ctx = document.getElementById('graficoRiego').getContext('2d');
-    const grafico = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
-        datasets: [{
-          label: 'Humedad del Suelo (%)',
-          data: [40, 55, 48, 60, 50],
-          borderColor: 'green',
-          backgroundColor: 'rgba(0, 128, 0, 0.1)',
-          tension: 0.3
-        }]
-      },
-      options: {
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100
-          }
-        }
+    // Tu configuración real de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlj9eFMKtn5IMm4XcX8kPA3fcVeFJ71TM",
+      authDomain: "data-riego.firebaseapp.com",
+      databaseURL: "https://data-riego-default-rtdb.firebaseio.com",
+      projectId: "data-riego",
+      storageBucket: "data-riego.firebasestorage.app",
+      messagingSenderId: "793269248007",
+      appId: "1:793269248007:web:4d0af04b50877b46e74aa2",
+      measurementId: "G-0T2926P2TD"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Escuchar el último dato registrado en 'sensor_logs'
+    db.ref("sensor_logs").limitToLast(1).on("value", (snapshot) => {
+      const datos = snapshot.val();
+      if (datos) {
+        const ultimo = Object.values(datos)[0];
+        document.getElementById("humedadSuelo").innerText = ultimo.humedad_suelo + "%";
+        document.getElementById("temperatura").innerText = ultimo.temperatura + "°C";
+        document.getElementById("humedadAmbiente").innerText = ultimo.humedad_ambiente + "%";
+        document.getElementById("ultimoRiego").innerText = ultimo.ultimo_riego;
       }
     });
   </script>
