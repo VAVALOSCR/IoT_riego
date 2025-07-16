@@ -4,71 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Panel IoT - Riego Inteligente</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f3f9f5;
-      color: #333;
-      padding: 2rem;
-      max-width: 600px;
-      margin: auto;
+      background-color: #f3f3f3;
+      margin: 20px;
     }
-    h1 {
-      text-align: center;
-      color: #2a7b4f;
+    h1, h2 {
+      color: #2d6a4f;
     }
-    ul {
-      list-style: none;
-      padding: 0;
+    .datos {
+      font-size: 18px;
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+      margin-bottom: 20px;
     }
-    li {
-      padding: 0.5rem 0;
-      font-size: 1.2rem;
-    }
-    strong {
-      color: #155724;
-    }
-    button {
-      display: block;
-      margin: 2rem auto 0;
-      padding: 0.75rem 1.5rem;
-      background-color: #2a7b4f;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    footer {
-      text-align: center;
-      margin-top: 2rem;
-      font-size: 0.9rem;
-      color: #777;
+    input, button {
+      padding: 8px;
+      margin: 5px;
     }
   </style>
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-
-  <!-- SheetJS para exportar Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-  <h1>🌱 Panel IoT - Riego Inteligente</h1>
 
-  <ul>
-    <li>🌡️ Temperatura: <strong><span id="temperatura">--</span></strong></li>
-    <li>💧 Humedad del Suelo: <strong><span id="humedadSuelo">--</span></strong></li>
-    <li>🌫️ Humedad Ambiental: <strong><span id="humedadAmbiente">--</span></strong></li>
-    <li>🕒 Último Riego: <strong><span id="ultimoRiego">--</span></strong></li>
-  </ul>
+  <h1>🌿 Panel de Riego Inteligente</h1>
 
-  <button onclick="descargarExcel()">📥 Descargar datos en Excel</button>
+  <div class="datos">
+    <p><strong>Humedad del suelo:</strong> <span id="humedadSuelo">--</span> %</p>
+    <p><strong>Temperatura:</strong> <span id="temperatura">--</span> °C</p>
+    <p><strong>Humedad ambiente:</strong> <span id="humedadAmbiente">--</span> %</p>
+    <p><strong>Último riego:</strong> <span id="ultimoRiego">--</span></p>
+  </div>
 
-  <footer>
-    © 2025 AgroInteligente - Proyecto educativo con IoT + Firebase
-  </footer>
+  <h2>🧠 Enviar comando</h2>
+  <input type="text" id="comandoInput" placeholder="Ej: regar ahora">
+  <button onclick="enviarComando()">Enviar</button>
+
+  <h2>📤 Exportar datos</h2>
+  <button onclick="exportarExcel()">Exportar a Excel</button>
 
   <script>
     // Configuración de Firebase
@@ -83,52 +61,21 @@
       measurementId: "G-0T2926P2TD"
     };
 
-    // Inicializar Firebase
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
 
-    // Mostrar último dato en pantalla
-    db.ref("sensor_logs").limitToLast(1).on("value", (snapshot) => {
-      const datos = snapshot.val();
-      if (datos) {
-        const ultimo = Object.values(datos)[0];
-        document.getElementById("humedadSuelo").innerText = ultimo.humedad_suelo + "%";
-        document.getElementById("temperatura").innerText = ultimo.temperatura + "°C";
-        document.getElementById("humedadAmbiente").innerText = ultimo.humedad_ambiente + "%";
-        document.getElementById("ultimoRiego").innerText = ultimo.ultimo_riego;
-      }
+    // Escuchar el último valor en tiempo real
+    firebase.database().ref("sensor_logs").limitToLast(1).on("child_added", function(snapshot) {
+      const data = snapshot.val();
+      document.getElementById("humedadSuelo").textContent = data.humedad_suelo + " %";
+      document.getElementById("temperatura").textContent = data.temperatura + " °C";
+      document.getElementById("humedadAmbiente").textContent = data.humedad_ambiente + " %";
+      document.getElementById("ultimoRiego").textContent = data.ultimo_riego;
     });
 
-    // Función para descargar los datos en Excel
-    function descargarExcel() {
-      db.ref("sensor_logs").once("value", (snapshot) => {
-        const datos = snapshot.val();
-        if (!datos) return alert("No hay datos disponibles");
+    // Enviar comando desde la web
+    function enviarComando() {
+      const comando = document.getElementById("comandoInput").value;
+      if (comando.trim() === "") return;
 
-        // Formatear los datos para Excel
-        const registros = Object.values(datos).map((item, index) => {
-          const fechaHora = item.timestamp
-            ? new Date(item.timestamp).toLocaleString("es-PE")
-            : "N/D";
-          return {
-            Nro: index + 1,
-            Temperatura: item.temperatura + "°C",
-            HumedadSuelo: item.humedad_suelo + "%",
-            HumedadAmbiente: item.humedad_ambiente + "%",
-            UltimoRiego: item.ultimo_riego,
-            FechaRegistro: fechaHora
-          };
-        });
-
-        // Crear hoja de Excel
-        const hoja = XLSX.utils.json_to_sheet(registros);
-        const libro = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(libro, hoja, "DatosRiego");
-
-        // Descargar archivo
-        XLSX.writeFile(libro, "Datos_Riego.xlsx");
-      });
-    }
-  </script>
-</body>
-</html>
+      firebase.database().ref("comando_web").set({
+        texto: comando
