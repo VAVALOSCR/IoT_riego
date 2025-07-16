@@ -2,55 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Panel IoT - Riego Inteligente</title>
+  <title>Exportador de Datos IoT</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f3f3f3;
-      margin: 20px;
-    }
-    h1, h2 {
-      color: #2d6a4f;
-    }
-    .datos {
-      font-size: 18px;
-      background-color: #ffffff;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #ccc;
-      margin-bottom: 20px;
-    }
-    input, button {
-      padding: 8px;
-      margin: 5px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f4f8; }
+    button { padding: 10px 20px; font-size: 16px; background-color: #2d6a4f; color: white; border: none; border-radius: 5px; }
+    h1 { color: #2d6a4f; }
   </style>
 </head>
 <body>
 
-  <h1>🌿 Panel de Riego Inteligente</h1>
-
-  <div class="datos">
-    <p><strong>Humedad del suelo:</strong> <span id="humedadSuelo">--</span> %</p>
-    <p><strong>Temperatura:</strong> <span id="temperatura">--</span> °C</p>
-    <p><strong>Humedad ambiente:</strong> <span id="humedadAmbiente">--</span> %</p>
-    <p><strong>Último riego:</strong> <span id="ultimoRiego">--</span></p>
-  </div>
-
-  <h2>🧠 Enviar comando</h2>
-  <input type="text" id="comandoInput" placeholder="Ej: regar ahora">
-  <button onclick="enviarComando()">Enviar</button>
-
-  <h2>📤 Exportar datos</h2>
+  <h1>📊 Exportar Datos desde Firebase</h1>
   <button onclick="exportarExcel()">Exportar a Excel</button>
 
   <script>
-    // Configuración de Firebase
-    const firebaseConfig = {
+    // Configurar Firebase
+    var firebaseConfig = {
       apiKey: "AIzaSyBlj9eFMKtn5IMm4XcX8kPA3fcVeFJ71TM",
       authDomain: "data-riego.firebaseapp.com",
       databaseURL: "https://data-riego-default-rtdb.firebaseio.com",
@@ -60,22 +29,36 @@
       appId: "1:793269248007:web:4d0af04b50877b46e74aa2",
       measurementId: "G-0T2926P2TD"
     };
-
     firebase.initializeApp(firebaseConfig);
 
-    // Escuchar el último valor en tiempo real
-    firebase.database().ref("sensor_logs").limitToLast(1).on("child_added", function(snapshot) {
-      const data = snapshot.val();
-      document.getElementById("humedadSuelo").textContent = data.humedad_suelo + " %";
-      document.getElementById("temperatura").textContent = data.temperatura + " °C";
-      document.getElementById("humedadAmbiente").textContent = data.humedad_ambiente + " %";
-      document.getElementById("ultimoRiego").textContent = data.ultimo_riego;
-    });
+    // Función para exportar a Excel
+    function exportarExcel() {
+      firebase.database().ref("sensor_logs").once("value", function(snapshot) {
+        const datos = snapshot.val();
+        if (!datos) {
+          alert("No hay datos disponibles.");
+          return;
+        }
 
-    // Enviar comando desde la web
-    function enviarComando() {
-      const comando = document.getElementById("comandoInput").value;
-      if (comando.trim() === "") return;
+        const filas = [["Fecha", "Humedad Suelo", "Temperatura", "Humedad Ambiente", "Último Riego"]];
 
-      firebase.database().ref("comando_web").set({
-        texto: comando
+        for (const [key, registro] of Object.entries(datos)) {
+          filas.push([
+            new Date(parseInt(key) * 1000).toLocaleString(),
+            registro.humedad_suelo || '',
+            registro.temperatura || '',
+            registro.humedad_ambiente || '',
+            registro.ultimo_riego || ''
+          ]);
+        }
+
+        const hoja = XLSX.utils.aoa_to_sheet(filas);
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "Datos Riego");
+        XLSX.writeFile(libro, "registro_riego.xlsx");
+      });
+    }
+  </script>
+
+</body>
+</html>
