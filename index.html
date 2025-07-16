@@ -28,6 +28,17 @@
     strong {
       color: #155724;
     }
+    button {
+      display: block;
+      margin: 2rem auto 0;
+      padding: 0.75rem 1.5rem;
+      background-color: #2a7b4f;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
     footer {
       text-align: center;
       margin-top: 2rem;
@@ -36,9 +47,12 @@
     }
   </style>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+  <!-- SheetJS para exportar Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
   <h1>🌱 Panel IoT - Riego Inteligente</h1>
@@ -50,12 +64,14 @@
     <li>🕒 Último Riego: <strong><span id="ultimoRiego">--</span></strong></li>
   </ul>
 
+  <button onclick="descargarExcel()">📥 Descargar datos en Excel</button>
+
   <footer>
     © 2025 AgroInteligente - Proyecto educativo con IoT + Firebase
   </footer>
 
   <script>
-    // Tu configuración real de Firebase
+    // Configuración de Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyBlj9eFMKtn5IMm4XcX8kPA3fcVeFJ71TM",
       authDomain: "data-riego.firebaseapp.com",
@@ -71,7 +87,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Escuchar el último dato registrado en 'sensor_logs'
+    // Mostrar último dato en pantalla
     db.ref("sensor_logs").limitToLast(1).on("value", (snapshot) => {
       const datos = snapshot.val();
       if (datos) {
@@ -82,6 +98,37 @@
         document.getElementById("ultimoRiego").innerText = ultimo.ultimo_riego;
       }
     });
+
+    // Función para descargar los datos en Excel
+    function descargarExcel() {
+      db.ref("sensor_logs").once("value", (snapshot) => {
+        const datos = snapshot.val();
+        if (!datos) return alert("No hay datos disponibles");
+
+        // Formatear los datos para Excel
+        const registros = Object.values(datos).map((item, index) => {
+          const fechaHora = item.timestamp
+            ? new Date(item.timestamp).toLocaleString("es-PE")
+            : "N/D";
+          return {
+            Nro: index + 1,
+            Temperatura: item.temperatura + "°C",
+            HumedadSuelo: item.humedad_suelo + "%",
+            HumedadAmbiente: item.humedad_ambiente + "%",
+            UltimoRiego: item.ultimo_riego,
+            FechaRegistro: fechaHora
+          };
+        });
+
+        // Crear hoja de Excel
+        const hoja = XLSX.utils.json_to_sheet(registros);
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "DatosRiego");
+
+        // Descargar archivo
+        XLSX.writeFile(libro, "Datos_Riego.xlsx");
+      });
+    }
   </script>
 </body>
 </html>
