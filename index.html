@@ -2,152 +2,67 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Panel de Riego Inteligente</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>Dashboard DHT11 MQTT</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f4f8; padding: 20px; }
-    h1 { color: #2d6a4f; }
-    #datos span { font-weight: bold; }
-    canvas { background: #fff; border: 1px solid #ccc; border-radius: 8px; }
-    button { margin-top: 15px; padding: 10px; background: #2d6a4f; color: white; border: none; border-radius: 5px; font-size: 16px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f4f8;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    #datos {
+      font-size: 24px;
+      margin-top: 30px;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: inline-block;
+      min-width: 300px;
+    }
   </style>
 </head>
 <body>
-
-  <h1>🌿 Panel de Riego Inteligente</h1>
-
-  <div id="datos">
-    <p>🌱 <strong>Humedad del Suelo:</strong> <span id="humedadSuelo">--</span>%</p>
-    <p>💧 <strong>Humedad Ambiente:</strong> <span id="humedadAmbiente">--</span>%</p>
-    <p>🌡️ <strong>Temperatura:</strong> <span id="temperatura">--</span>°C</p>
-    <p>🕒 <strong>Último Riego:</strong> <span id="ultimoRiego">--</span></p>
-  </div>
-
-  <h2>📈 Gráfico en Tiempo Real</h2>
-  <canvas id="grafico" width="800" height="400"></canvas>
-
-  <button onclick="exportarExcel()">📥 Exportar a Excel</button>
+  <h1>📡 Dashboard Sensor DHT11</h1>
+  <div id="datos">Esperando datos MQTT...</div>
 
   <script>
-    // Configuración de Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyBlj9eFMKtn5IMm4XcX8kPA3fcVeFJ71TM",
-      authDomain: "data-riego.firebaseapp.com",
-      databaseURL: "https://data-riego-default-rtdb.firebaseio.com",
-      projectId: "data-riego",
-      storageBucket: "data-riego.firebasestorage.app",
-      messagingSenderId: "793269248007",
-      appId: "1:793269248007:web:4d0af04b50877b46e74aa2",
-      measurementId: "G-0T2926P2TD"
+    // Conexión MQTT
+    const options = {
+      username: "gatoo",
+      password: "hola",
+      clean: true,
+      reconnectPeriod: 1000
     };
-    firebase.initializeApp(firebaseConfig);
 
-    // Referencia a los datos
-    const dbRef = firebase.database().ref("sensor_logs");
+    const client = mqtt.connect("wss://gatoo.cloud.shiftr.io:443", options);
 
-    // Inicializar datos para el gráfico
-    let labels = [];
-    let dataHumedadSuelo = [];
-    let dataHumedadAmbiente = [];
-    let dataTemperatura = [];
-
-    // Crear el gráfico con Chart.js
-    const ctx = document.getElementById('grafico').getContext('2d');
-    const grafico = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Humedad del Suelo (%)',
-            data: dataHumedadSuelo,
-            borderColor: '#2d6a4f',
-            fill: false
-          },
-          {
-            label: 'Humedad Ambiente (%)',
-            data: dataHumedadAmbiente,
-            borderColor: '#00b4d8',
-            fill: false
-          },
-          {
-            label: 'Temperatura (°C)',
-            data: dataTemperatura,
-            borderColor: '#f77f00',
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          x: { display: true, title: { display: true, text: 'Hora' } },
-          y: { beginAtZero: true }
+    client.on("connect", function () {
+      console.log("Conectado a Shiftr.io");
+      client.subscribe("sensor/dht11", function (err) {
+        if (!err) {
+          console.log("Suscrito al topic sensor/dht11");
+        } else {
+          console.error("Error al suscribirse:", err);
         }
-      }
+      });
     });
 
-    // Escuchar cambios en los últimos 20 datos
-    dbRef.limitToLast(20).on("value", snapshot => {
-      const datos = snapshot.val();
-      if (!datos) return;
-
-      // Limpiar arrays
-      labels.length = 0;
-      dataHumedadSuelo.length = 0;
-      dataHumedadAmbiente.length = 0;
-      dataTemperatura.length = 0;
-
-      const ordenados = Object.entries(datos).sort((a, b) => a[0] - b[0]);
-
-      ordenados.forEach(([timestamp, d]) => {
-        const fecha = new Date(parseInt(timestamp) * 1000).toLocaleTimeString();
-        labels.push(fecha);
-        dataHumedadSuelo.push(d.humedad_suelo);
-        dataHumedadAmbiente.push(d.humedad_ambiente);
-        dataTemperatura.push(d.temperatura);
-      });
-
-      grafico.update();
-
-      // Mostrar último dato
-      const ultimo = ordenados[ordenados.length - 1][1];
-      document.getElementById("humedadSuelo").textContent = ultimo.humedad_suelo;
-      document.getElementById("humedadAmbiente").textContent = ultimo.humedad_ambiente;
-      document.getElementById("temperatura").textContent = ultimo.temperatura;
-      document.getElementById("ultimoRiego").textContent = ultimo.ultimo_riego;
+    client.on("message", function (topic, message) {
+      const datos = message.toString();
+      console.log("Mensaje recibido:", datos);
+      document.getElementById("datos").innerText = datos;
     });
 
-    // Exportar a Excel
-    function exportarExcel() {
-      firebase.database().ref("sensor_logs").once("value", function(snapshot) {
-        const datos = snapshot.val();
-        if (!datos) {
-          alert("No hay datos para exportar.");
-          return;
-        }
-
-        const filas = [["Fecha", "Humedad Suelo", "Temperatura", "Humedad Ambiente", "Último Riego"]];
-        for (const [key, d] of Object.entries(datos)) {
-          filas.push([
-            new Date(parseInt(key) * 1000).toLocaleString(),
-            d.humedad_suelo || '',
-            d.temperatura || '',
-            d.humedad_ambiente || '',
-            d.ultimo_riego || ''
-          ]);
-        }
-
-        const hoja = XLSX.utils.aoa_to_sheet(filas);
-        const libro = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(libro, hoja, "Datos Riego");
-        XLSX.writeFile(libro, "registro_riego.xlsx");
-      });
-    }
+    client.on("error", function (error) {
+      console.error("Error MQTT:", error);
+    });
   </script>
-
 </body>
 </html>
